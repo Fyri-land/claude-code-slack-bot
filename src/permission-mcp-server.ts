@@ -261,9 +261,10 @@ class PermissionMCPServer {
 export const permissionServer = new PermissionMCPServer();
 
 // Run if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  permissionServer.run().catch((error) => {
-    logger.error('Permission MCP server error:', error);
-    process.exit(1);
-  });
-}
+// Note: Disabled for CommonJS compatibility
+// if (import.meta.url === `file://${process.argv[1]}`) {
+//   permissionServer.run().catch((error) => {
+//     logger.error('Permission MCP server error:', error);
+//     process.exit(1);
+//   });
+// }
