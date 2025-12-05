@@ -1,7 +1,7 @@
 import { App } from '@slack/bolt';
 import axios from 'axios';
 import { ConversationState } from './types';
-import { callClaude, extractTaskInfo } from './claude';
+import { callClaude } from './claude';
 import { createTask } from './clickup';
 
 // Store des conversations par thread
@@ -19,23 +19,38 @@ async function downloadSlackFile(url: string, token: string): Promise<Buffer> {
   return Buffer.from(response.data);
 }
 
-function isValidationMessage(text: string): boolean {
-  const validationPatterns = [
-    /^ok$/i,
-    /^go$/i,
-    /^oui$/i,
-    /^yes$/i,
-    /^crée/i,
-    /^créer/i,
-    /^create/i,
-    /^valide/i,
-    /^confirme/i,
-    /^c'est bon/i,
-    /^parfait/i,
-    /✅/,
-    /👍/,
-  ];
-  return validationPatterns.some(pattern => pattern.test(text.trim()));
+// Parse le marqueur [CREATE_TASK] dans la réponse de Claude
+function parseCreateTaskMarker(response: string): {
+  hasMarker: boolean;
+  title?: string;
+  priority?: string;
+  description?: string;
+  cleanResponse: string;
+} {
+  const markerRegex = /\[CREATE_TASK\]\s*\n([\s\S]*?)\[\/CREATE_TASK\]/;
+  const match = response.match(markerRegex);
+
+  if (!match) {
+    return { hasMarker: false, cleanResponse: response };
+  }
+
+  const markerContent = match[1];
+  
+  // Parser les champs
+  const titleMatch = markerContent.match(/title:\s*(.+?)(?:\n|$)/);
+  const priorityMatch = markerContent.match(/priority:\s*(.+?)(?:\n|$)/);
+  const descriptionMatch = markerContent.match(/description:\s*([\s\S]*?)$/);
+
+  // Retirer le marqueur de la réponse
+  const cleanResponse = response.replace(markerRegex, '').trim();
+
+  return {
+    hasMarker: true,
+    title: titleMatch ? titleMatch[1].trim() : undefined,
+    priority: priorityMatch ? priorityMatch[1].trim() : undefined,
+    description: descriptionMatch ? descriptionMatch[1].trim() : undefined,
+    cleanResponse,
+  };
 }
 
 async function handleMessage(
@@ -76,53 +91,6 @@ async function handleMessage(
     }
   }
 
-  // Vérifier si c'est une validation
-  if (isValidationMessage(userText) && conversation.messages.length > 0) {
-    try {
-      await say({
-        text: 'Création de la tâche en cours...',
-        thread_ts: threadTs,
-      });
-
-      // Extraire les infos de la tâche
-      const taskInfo = await extractTaskInfo(conversation.messages);
-
-      // Récupérer l'image si stockée
-      let imgBuffer: Buffer | undefined;
-      if (conversation.imageUrl) {
-        try {
-          imgBuffer = await downloadSlackFile(conversation.imageUrl, token);
-        } catch (e) {
-          console.error('Erreur re-téléchargement image:', e);
-        }
-      }
-
-      // Créer la tâche ClickUp
-      const task = await createTask(
-        taskInfo.title,
-        taskInfo.description,
-        taskInfo.priority,
-        imgBuffer
-      );
-
-      await say({
-        text: `Tâche créée : ${task.url}`,
-        thread_ts: threadTs,
-      });
-
-      // Nettoyer la conversation
-      conversations.delete(threadKey);
-      return;
-    } catch (error: any) {
-      console.error('Erreur création tâche:', error);
-      await say({
-        text: `Erreur lors de la création : ${error.message}`,
-        thread_ts: threadTs,
-      });
-      return;
-    }
-  }
-
   // Ajouter le message à la conversation
   conversation.messages.push({
     role: 'user',
@@ -134,17 +102,57 @@ async function handleMessage(
     // Appeler Claude
     const response = await callClaude(conversation.messages);
 
-    // Ajouter la réponse à la conversation
+    // Vérifier si Claude a inclus le marqueur de création
+    const parsed = parseCreateTaskMarker(response);
+
+    // Ajouter la réponse (nettoyée) à la conversation
     conversation.messages.push({
       role: 'assistant',
-      content: response,
+      content: parsed.cleanResponse,
     });
 
-    // Envoyer la réponse
+    // Envoyer la réponse nettoyée à Slack
     await say({
-      text: response,
+      text: parsed.cleanResponse,
       thread_ts: threadTs,
     });
+
+    // Si le marqueur est présent, créer la tâche
+    if (parsed.hasMarker && parsed.title && parsed.description) {
+      try {
+        // Récupérer l'image si stockée
+        let imgBuffer: Buffer | undefined;
+        if (conversation.imageUrl) {
+          try {
+            imgBuffer = await downloadSlackFile(conversation.imageUrl, token);
+          } catch (e) {
+            console.error('Erreur re-téléchargement image:', e);
+          }
+        }
+
+        // Créer la tâche ClickUp
+        const task = await createTask(
+          parsed.title,
+          parsed.description,
+          parsed.priority || 'Normale',
+          imgBuffer
+        );
+
+        await say({
+          text: `Tâche créée : ${task.url}`,
+          thread_ts: threadTs,
+        });
+
+        // Nettoyer la conversation
+        conversations.delete(threadKey);
+      } catch (error: any) {
+        console.error('Erreur création tâche:', error);
+        await say({
+          text: `Erreur lors de la création : ${error.message}`,
+          thread_ts: threadTs,
+        });
+      }
+    }
   } catch (error: any) {
     console.error('Erreur Claude:', error);
     await say({
