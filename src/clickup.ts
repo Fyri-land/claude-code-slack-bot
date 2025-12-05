@@ -15,8 +15,26 @@ export async function createTask(
   title: string,
   description: string,
   priority: string,
+  type?: string,
+  platform?: string,
+  os?: string,
   imageBuffer?: Buffer
 ): Promise<{ id: string; url: string }> {
+  // Construire la liste des tags
+  const tags: string[] = [];
+  
+  if (type) {
+    tags.push(type); // bug, amélioration, demande client
+  }
+  
+  if (platform) {
+    tags.push(platform); // app techniciens, app proprio, app ingénieurs, web proprios, web ingénieurs
+  }
+  
+  if (os && os !== 'none') {
+    tags.push(os); // android, iOS, MacOS, Windows
+  }
+
   // Créer la tâche
   const response = await axios.post(
     `https://api.clickup.com/api/v2/list/${CLICKUP_LIST_ID}/task`,
@@ -24,6 +42,7 @@ export async function createTask(
       name: title,
       description: description,
       priority: priorityMap[priority] || 3,
+      tags: tags,
     },
     {
       headers: {
