@@ -25,15 +25,24 @@ async function fetchClickUpUsers() {
       }
     );
 
+    // Debug: afficher la structure de la réponse
+    console.log('📦 Structure de la réponse:', JSON.stringify(response.data, null, 2));
+
     const members = response.data.members;
+
+    if (!members || members.length === 0) {
+      console.log('⚠️  Aucun membre trouvé ou structure différente');
+      console.log('Réponse complète:', response.data);
+      return;
+    }
 
     console.log('✅ Membres trouvés:\n');
     console.log('─'.repeat(60));
 
     members.forEach((member: any) => {
-      const user = member.user;
-      console.log(`Nom: ${user.username}`);
-      console.log(`Email: ${user.email}`);
+      const user = member.user || member;
+      console.log(`Nom: ${user.username || user.name || 'N/A'}`);
+      console.log(`Email: ${user.email || 'N/A'}`);
       console.log(`User ID: ${user.id}`);
       console.log(`Initiales: ${user.initials || 'N/A'}`);
       console.log('─'.repeat(60));
@@ -43,8 +52,9 @@ async function fetchClickUpUsers() {
     console.log('Exemple de mapping:\n');
     console.log('export const userMapping: Record<string, number> = {');
     members.forEach((member: any) => {
-      const user = member.user;
-      const nameLower = user.username.toLowerCase();
+      const user = member.user || member;
+      const name = user.username || user.name || 'unknown';
+      const nameLower = name.toLowerCase();
       console.log(`  "${nameLower}": ${user.id},`);
     });
     console.log('};\n');
