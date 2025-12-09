@@ -70,7 +70,7 @@ export async function createTask(
   description: string,
   priority: string,
   type?: string,
-  platform?: string,
+  platforms?: string[],
   os?: string,
   assigneeName?: string,
   imageBuffer?: Buffer
@@ -82,8 +82,11 @@ export async function createTask(
     tags.push(type); // bug, amélioration, demande client
   }
 
-  if (platform) {
-    tags.push(platform); // app techniciens, app proprio, app ingénieurs, web proprios, web ingénieurs
+  if (platforms && platforms.length > 0) {
+    // Ajouter toutes les plateformes comme tags
+    platforms.forEach(platform => {
+      tags.push(platform); // app techniciens, app proprio, app ingénieurs, web proprios, web ingénieurs
+    });
   }
 
   if (os && os !== 'none') {

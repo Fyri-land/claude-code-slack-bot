@@ -25,7 +25,7 @@ function parseCreateTaskMarker(response: string): {
   title?: string;
   priority?: string;
   type?: string;
-  platform?: string;
+  platforms?: string[];
   os?: string;
   assignee?: string;
   description?: string;
@@ -49,6 +49,15 @@ function parseCreateTaskMarker(response: string): {
   const assigneeMatch = markerContent.match(/assignee:\s*(.+?)(?:\n|$)/);
   const descriptionMatch = markerContent.match(/description:\s*([\s\S]*?)$/);
 
+  // Parser les plateformes multiples (séparées par |)
+  let platforms: string[] | undefined = undefined;
+  if (platformMatch) {
+    platforms = platformMatch[1]
+      .split('|')
+      .map(p => p.trim().toLowerCase())
+      .filter(p => p.length > 0);
+  }
+
   // Retirer le marqueur de la réponse
   const cleanResponse = response.replace(markerRegex, '').trim();
 
@@ -57,7 +66,7 @@ function parseCreateTaskMarker(response: string): {
     title: titleMatch ? titleMatch[1].trim() : undefined,
     priority: priorityMatch ? priorityMatch[1].trim() : undefined,
     type: typeMatch ? typeMatch[1].trim().toLowerCase() : undefined,
-    platform: platformMatch ? platformMatch[1].trim().toLowerCase() : undefined,
+    platforms: platforms,
     os: osMatch ? osMatch[1].trim().toLowerCase() : undefined,
     assignee: assigneeMatch ? assigneeMatch[1].trim() : undefined,
     description: descriptionMatch ? descriptionMatch[1].trim() : undefined,
@@ -148,7 +157,7 @@ async function handleMessage(
           parsed.description,
           parsed.priority || 'Normale',
           parsed.type,
-          parsed.platform,
+          parsed.platforms,
           parsed.os,
           parsed.assignee,
           imgBuffer

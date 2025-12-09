@@ -8,7 +8,7 @@ Créer un bot Slack qui permet à l'équipe Fyri de signaler des bugs ou amélio
 1. Un membre de l'équipe mentionne @BacklogBot dans Slack avec une description du problème (+ screenshot optionnel)
 2. Le bot analyse le message et demande les informations manquantes :
 
-- Plateforme (App Techniciens, App Proprio, App Ingénieurs, Web Proprios, Web Ingénieurs)
+- **Plateforme(s)** (App Techniciens, App Proprio, App Ingénieurs, Web Proprios, Web Ingénieurs) - **peut être multiple** 🎯
 - Type (Bug, Amélioration, Demande client)
 - Priorité (Urgente, Élevée, Normale, Basse)
 - OS si c'est une app (Android, iOS, MacOS, Windows)
@@ -17,9 +17,9 @@ Créer un bot Slack qui permet à l'équipe Fyri de signaler des bugs ou amélio
 3. Le bot propose un titre optimisé et une description structurée
 4. L'utilisateur valide ("oui", "ok", "parfait", etc.)
 5. La tâche est créée automatiquement dans ClickUp avec :
-   - Les tags appropriés
+   - **Les tags pour toutes les plateformes concernées** ✨
    - Le screenshot attaché (si présent)
-   - **L'assignation automatique à la personne spécifiée** ✨
+   - **L'assignation automatique à la personne spécifiée**
 
 ## Architecture technique
 Slack → Bot Node.js (Railway) → API Claude (analyse) + API ClickUp (création)
@@ -49,9 +49,34 @@ Composants :
 ## Variables d'environnement (Railway)
 VariableDescriptionSLACK_BOT_TOKENToken du bot Slack (xoxb-...)SLACK_APP_TOKENToken app-level Slack (xapp-...)SLACK_SIGNING_SECRETSecret de signature SlackANTHROPIC_API_KEYClé API AnthropicCLICKUP_API_KEYClé API ClickUpCLICKUP_LIST_IDID de la liste Backlog
 
-## Fonctionnalité : Assignation automatique des tâches 🎯
+## Fonctionnalités avancées
 
-### Comment ça marche
+### 1. Plateformes multiples 🎯
+
+Le bot peut créer des tâches qui touchent **plusieurs plateformes à la fois**.
+
+#### Exemples d'utilisation
+
+```
+User: Ce bug se produit sur toutes les apps
+→ ✅ 3 tags créés : app techniciens, app proprio, app ingénieurs
+
+User: Problème sur app techniciens et app ingénieurs
+→ ✅ 2 tags créés : app techniciens, app ingénieurs
+
+User: Ça touche l'app proprio et web proprios
+→ ✅ 2 tags créés : app proprio, web proprios
+```
+
+**Comment ça marche :**
+
+- Vous parlez naturellement dans Slack ("toutes les apps", "app techniciens et web proprios")
+- Claude analyse et identifie toutes les plateformes concernées
+- Le bot crée automatiquement un tag ClickUp pour chaque plateforme
+
+### 2. Assignation automatique des tâches 👥
+
+#### Comment ça marche
 
 Le bot utilise un **système hybride** pour assigner automatiquement les tâches :
 
