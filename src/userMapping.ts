@@ -20,6 +20,7 @@ export const userMapping: Record<string, number> = {
   "pierre alexandre": 82410153,
   "pa": 82410153,
   "pahurtubise": 82410153,
+  "elgros": 82410153,
 
   // Thomas Sebbane
   "thomas sebbane": 88305701,
